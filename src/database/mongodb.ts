@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
-const mongoURL: string = 'mongodb://localhost:27017/mydatabase';
+// Variabel lingkungan MONGO_URL telah diatur di Dockerfile
+const mongoURL: string = process.env.MONGO_URL || 'mongodb://mongodb:27017/mydatabase';
 
 export async function connectToMongoDB() {
   try {
