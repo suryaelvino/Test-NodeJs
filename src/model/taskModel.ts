@@ -7,7 +7,7 @@ export interface Task extends Document {
   startTime: Date;
   endTime: Date;
   completed: boolean;
-  project: Types.ObjectId;
+  projectId: Types.ObjectId;
 }
 
 const taskSchema: Schema = new Schema({
@@ -16,7 +16,7 @@ const taskSchema: Schema = new Schema({
   startTime: { type: Date, required: true },
   endTime: { type: Date, required: true },
   completed: { type: Boolean, default: false },
-  project: { type: Schema.Types.ObjectId, ref: 'Project', required: true }
+  projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: true }
 });
 
 export default mongoose.model<Task>('Task', taskSchema);

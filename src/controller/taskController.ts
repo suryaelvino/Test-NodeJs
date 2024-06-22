@@ -19,29 +19,48 @@ export const createTask = async (req: Request, res: Response) => {
         return res.status(code.UNPROCESSABLE_ENTITY).json({ message: 'startTime must be earlier than endTime' });
     }
     try {
+        // Cari proyek berdasarkan ID yang diberikan
         const project = await Project.findById(projectId);
         if (!project) {
             return res.status(code.NOT_FOUND).json({ message: `Project with ${projectId} not found` });
         }
         // Validasi: pastikan tidak ada tugas yang saling tumpang tindih dalam waktu
-        const existingTasks = await Task.find({ project: projectId });
+        const overlappingTasks = [];
+        const existingTasks = await Task.find({ projectId: projectId });
         for (const existingTask of existingTasks) {
             if (doTasksOverlap(existingTask.startTime, existingTask.endTime, startTimeDate, endTimeDate)) {
-                return res.status(code.UNPROCESSABLE_ENTITY).json({ message: 'Task overlaps with an existing task' });
+                overlappingTasks.push({
+                    id: existingTask._id,
+                    title: existingTask.title,
+                    description: existingTask.description,
+                    startTime: existingTask.startTime,
+                    endTime: existingTask.endTime,
+                });
             }
         }
+        if (overlappingTasks.length > 0) {
+            return res.status(code.UNPROCESSABLE_ENTITY).json({
+                message: 'Task overlaps with existing tasks',
+                data: overlappingTasks,
+            });
+        }
+        // Buat objek task baru
         const task = new Task({
             title,
             description,
             startTime: startTimeDate,
             endTime: endTimeDate,
-            project: project._id,
+            projectId: project._id,
         });
+        // Simpan task baru ke dalam database
         await task.save();
+        // Tambahkan task ke dalam array tasks pada objek project
         project.tasks.push(task._id);
         await project.save();
-        res.status(code.CREATED).json({message: 'Successfully create new task', data : task });
+        // Kirim respons sukses dengan data task yang telah dibuat
+        res.status(code.CREATED).json({ message: 'Successfully create new task', data: task });
     } catch (error: unknown) {
+        // Tangani kesalahan yang terjadi selama proses
         if (error instanceof Error) {
             res.status(code.INTERNAL_SERVER_ERROR).json({ message: 'Failed to create task', error: error.message });
         } else {
@@ -107,28 +126,61 @@ export const getAllTasksUncompletedByProjectId = async (req: Request, res: Respo
 export const updateTask = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { title, description, startTime, endTime } = req.body;
+    // Validasi data yang dibutuhkan
     if (!id || !title || !startTime || !endTime) {
         return res.status(code.BAD_REQUEST).json({ message: 'Missing required fields: id, title, startTime, endTime' });
     }
-    if (startTime >= endTime) {
+    // Konversi startTime dan endTime ke objek Date
+    const startTimeDate = new Date(startTime);
+    const endTimeDate = new Date(endTime);
+    // Validasi: pastikan startTime lebih awal dari endTime
+    if (startTimeDate >= endTimeDate) {
         return res.status(code.UNPROCESSABLE_ENTITY).json({ message: 'startTime must be earlier than endTime' });
     }
     try {
+        // Cari task yang akan diperbarui berdasarkan ID yang diberikan
+        const existingTask = await Task.findById(id);
+        if (!existingTask) {
+            return res.status(code.NOT_FOUND).json({ message: 'Task not found' });
+        }
+        // Cari semua task lain dalam proyek yang sama
+        const otherTasks = await Task.find({ _id: { $ne: id }, projectId: existingTask.projectId });
+        // Array untuk menyimpan informasi task yang tumpang tindih
+        const overlappingTasks: any[] = [];
+        // Validasi: periksa tumpang tindih waktu dengan task lain
+        for (const task of otherTasks) {
+            if (doTasksOverlap(task.startTime, task.endTime, startTimeDate, endTimeDate)) {
+                overlappingTasks.push({
+                    id: task._id,
+                    title: task.title,
+                    description: task.description,
+                    startTime: task.startTime,
+                    endTime: task.endTime,
+                });
+            }
+        }
+        // Jika terdapat tumpang tindih, kirimkan respons dengan daftar task yang bertabrakan
+        if (overlappingTasks.length > 0) {
+            return res.status(code.UNPROCESSABLE_ENTITY).json({
+                message: 'Task overlaps with existing tasks',
+                data : overlappingTasks,
+            });
+        }
+        // Lakukan pembaruan task
         const updatedTask = await Task.findByIdAndUpdate(
             id,
             {
                 title,
                 description,
-                startTime: new Date(startTime),
-                endTime: new Date(endTime),
+                startTime: startTimeDate,
+                endTime: endTimeDate,
             },
             { new: true }
         );
-        if (!updatedTask) {
-            return res.status(code.NOT_FOUND).json({ message: 'Task not found' });
-        }
-        return res.status(code.OK).json({ message: `Successfully update task with ${id}`, data : updatedTask });
+        // Kirim respons sukses dengan data task yang telah diperbarui
+        return res.status(code.OK).json({ message: `Successfully update task with ${id}`, data: updatedTask });
     } catch (error: unknown) {
+        // Tangani kesalahan yang terjadi selama proses
         if (error instanceof Error) {
             return res.status(code.INTERNAL_SERVER_ERROR).json({ message: 'Failed to update task', error: error.message });
         } else {
