@@ -76,6 +76,9 @@ export const getAllTasksByProjectId = async (req: Request, res: Response) => {
         if (!project) {
             return res.status(code.NOT_FOUND).json({ message: `Project with ${projectId} not found`, data : null });
         }
+        if (project.tasks.length === 0) {
+            return res.status(code.NOT_FOUND).json({ message: `No tasks found for project ${projectId}`, data : null });
+        }
         res.status(code.OK).json({message: `Successfully get all task with project ${projectId}`, data : project.tasks});
     } catch (error: unknown) {
         if (error instanceof Error) {
@@ -94,6 +97,9 @@ export const getAllTasksCompletedByProjectId = async (req: Request, res: Respons
     }
     try {
         const tasks = await Task.find({ project: projectId, completed: true });
+        if (tasks.length === 0) {
+            return res.status(code.NOT_FOUND).json({ message: `No completed tasks found for project ${projectId}` });
+        }
         return res.status(code.OK).json({ message: `Successfully get all completed tasks with project ${projectId}`, data: tasks });
     } catch (error: unknown) {
         if (error instanceof Error) {
@@ -113,6 +119,9 @@ export const getAllTasksUncompletedByProjectId = async (req: Request, res: Respo
     }
     try {
         const tasks = await Task.find({ project: projectId, completed: false });
+        if (tasks.length === 0) {
+            return res.status(code.NOT_FOUND).json({ message: `No uncompleted tasks found for project ${projectId}` });
+        }
         return res.status(code.OK).json({ message: `Successfully get all uncompleted tasks with project ${projectId}`, data: tasks });
     } catch (error: unknown) {
         if (error instanceof Error) {
