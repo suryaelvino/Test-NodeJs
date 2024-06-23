@@ -96,7 +96,7 @@ export const getAllTasksCompletedByProjectId = async (req: Request, res: Respons
         return res.status(code.BAD_REQUEST).json({ message: 'Missing required parameter: projectId' });
     }
     try {
-        const tasks = await Task.find({ project: projectId, completed: true });
+        const tasks = await Task.find({ projectId: projectId, completed: true });
         if (tasks.length === 0) {
             return res.status(code.NOT_FOUND).json({ message: `No completed tasks found for project ${projectId}` });
         }
@@ -118,7 +118,7 @@ export const getAllTasksUncompletedByProjectId = async (req: Request, res: Respo
         return res.status(code.BAD_REQUEST).json({ message: 'Missing required parameter: projectId' });
     }
     try {
-        const tasks = await Task.find({ project: projectId, completed: false });
+        const tasks = await Task.find({ projectId: projectId, completed: false });
         if (tasks.length === 0) {
             return res.status(code.NOT_FOUND).json({ message: `No uncompleted tasks found for project ${projectId}` });
         }
